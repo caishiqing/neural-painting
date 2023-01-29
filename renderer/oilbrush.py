@@ -7,13 +7,13 @@ class OilBrush(Renderer):
     shape_size = 5
     color_size = 6
     brush_small_vertical = cv2.imread(
-        r'../brushes/brush_fromweb2_small_vertical.png', cv2.IMREAD_GRAYSCALE)
+        r'./brushes/brush_fromweb2_small_vertical.png', cv2.IMREAD_GRAYSCALE)
     brush_small_horizontal = cv2.imread(
-        r'../brushes/brush_fromweb2_small_horizontal.png', cv2.IMREAD_GRAYSCALE)
+        r'./brushes/brush_fromweb2_small_horizontal.png', cv2.IMREAD_GRAYSCALE)
     brush_large_vertical = cv2.imread(
-        r'../brushes/brush_fromweb2_large_vertical.png', cv2.IMREAD_GRAYSCALE)
+        r'./brushes/brush_fromweb2_large_vertical.png', cv2.IMREAD_GRAYSCALE)
     brush_large_horizontal = cv2.imread(
-        r'../brushes/brush_fromweb2_large_horizontal.png', cv2.IMREAD_GRAYSCALE)
+        r'./brushes/brush_fromweb2_large_horizontal.png', cv2.IMREAD_GRAYSCALE)
 
     def draw_stroke(self):
         # xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2, A
@@ -25,7 +25,7 @@ class OilBrush(Renderer):
         h = self._scaling(h)
         theta *= np.math.pi
 
-        if w * h / (self.CANVAS_WIDTH**2) > 0.1:
+        if w * h / (self.canvas_width**2) > 0.1:
             if h > w:
                 brush = self.brush_large_vertical
             else:
@@ -35,8 +35,9 @@ class OilBrush(Renderer):
                 brush = self.brush_small_vertical
             else:
                 brush = self.brush_small_horizontal
+
         self.foreground, self.stroke_alpha_map = create_transformed_brush(
-            brush, self.CANVAS_WIDTH, self.CANVAS_WIDTH,
+            brush, self.canvas_width, self.canvas_width,
             x0, y0, w, h, theta, R0, G0, B0, R2, G2, B2)
 
         if not self.train:
@@ -45,7 +46,7 @@ class OilBrush(Renderer):
 
         self.foreground = np.array(self.foreground, dtype=np.float32)/255.
         self.stroke_alpha_map = np.array(self.stroke_alpha_map, dtype=np.float32)/255.
-        self.canvas = self._update_canvas()
+        self._update_canvas()
 
 
 def create_transformed_brush(brush, canvas_w, canvas_h,

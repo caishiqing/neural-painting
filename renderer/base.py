@@ -8,7 +8,6 @@ class Renderer(object):
     shape_params = None
     color_params = None
     alpha = None
-    canvas = None
     foreground = None
     stroke_alpha_map = None
 
