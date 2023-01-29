@@ -1,5 +1,5 @@
+import tensorflow as tf
 import numpy as np
-import cv2
 
 
 class Renderer(object):
@@ -45,3 +45,18 @@ class Renderer(object):
 
     def draw_stroke(self):
         raise NotImplemented
+
+    def generate_dataset(self, batch_size=64):
+        assert self.shape_size is not None and self.color_size is not None
+        def _gen():
+            while True:
+                self.random_params()
+                self.draw_stroke()
+                yield self.params, self.foreground
+
+        dataset = tf.data.Dataset.from_generator(
+            _gen, output_types=(tf.float32, tf.float32),
+            output_shapes=((self.param_size,), (self.canvas_width, self.canvas_width, 3))
+        ).batch(batch_size)
+
+        return dataset
