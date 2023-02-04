@@ -7,12 +7,13 @@ import os
 
 
 def train_renderer(canvas_width: int = 128,
+                   canvas_color: str = 'white',
                    renderer_type: str = 'oilbrush',
                    save_path: str = None,
                    **train_args):
 
     assert renderer_type in RENDERER_FACTORY
-    renderer = RENDERER_FACTORY[renderer_type]
+    renderer = RENDERER_FACTORY[renderer_type](canvas_width, canvas_color, True)
     dataset = renderer.generate_dataset(train_args.pop('batch_size', 64))
     model = RenderNet(renderer.param_size, canvas_width)
     model.build(optimizer=tf.keras.optimizers.Adam(train_args.pop('learning_rate'), 1e-3),
