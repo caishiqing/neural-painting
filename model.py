@@ -33,6 +33,7 @@ class PixelShuffle(layers.Layer):
     def get_config(self):
         config = super(PixelShuffle, self).get_config()
         config['upscale_factor'] = self.upscale_factor
+        return config
 
     def build(self, input_shape):
         b, h, w, c = input_shape
