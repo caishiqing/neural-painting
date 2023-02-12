@@ -97,3 +97,8 @@ def RenderNet(param_size, canvas_width):
 def save_model(cls, filepath, **kwargs):
     kwargs["include_optimizer"] = False
     tf.keras.models.save_model(cls, filepath, **kwargs)
+
+
+tf.keras.utils.get_custom_objects().update(
+    {'PixelShuffle': PixelShuffle}
+)
