@@ -34,7 +34,8 @@ def train_renderer(canvas_width: int = 128,
     model.fit(x=dataset,
               epochs=train_args.pop('epochs', 100),
               steps_per_epoch=train_args.pop('steps_per_epoch', 500),
-              callbacks=callbacks)
+              callbacks=callbacks,
+              verbose=train_args.pop('train_args', 1))
 
 
 if __name__ == '__main__':
