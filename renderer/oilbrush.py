@@ -15,16 +15,14 @@ class OilBrush(Renderer):
     brush_large_horizontal = cv2.imread(
         r'./brushes/brush_fromweb2_large_horizontal.png', cv2.IMREAD_GRAYSCALE)
 
+    def _process_params(self):
+        self.shape_params[:4] = self._scaling(self.shape_params[:4])
+        self.shape_params[5] *= np.math.pi
+
     def draw_stroke(self):
         # xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2, A
-        x0, y0, w, h, theta = self.shape_params
-        R0, G0, B0, R2, G2, B2 = self.color_params
-        x0 = self._scaling(x0)
-        y0 = self._scaling(y0)
-        w = self._scaling(w)
-        h = self._scaling(h)
-        theta *= np.math.pi
-
+        self._process_params()
+        w, h = self.shape_params[2:4]
         if w * h / (self.canvas_width**2) > 0.1:
             if h > w:
                 brush = self.brush_large_vertical
@@ -36,9 +34,11 @@ class OilBrush(Renderer):
             else:
                 brush = self.brush_small_horizontal
 
-        self.foreground, self.stroke_alpha_map = create_transformed_brush(
-            brush, self.canvas_width, self.canvas_width,
-            x0, y0, w, h, theta, R0, G0, B0, R2, G2, B2)
+        self.foreground, self.stroke_alpha_map = create_transformed_brush(brush,
+                                                                          self.canvas_width,
+                                                                          self.canvas_width,
+                                                                          self.shape_params,
+                                                                          self.color_params)
 
         if not self.train:
             self.foreground = cv2.dilate(self.foreground, np.ones([2, 2]))
@@ -49,29 +49,31 @@ class OilBrush(Renderer):
         self._update_canvas()
 
 
-def create_transformed_brush(brush, canvas_w, canvas_h,
-                             x0, y0, w, h, theta,
-                             R0, G0, B0, R2, G2, B2):
+def create_transformed_brush(brush, canvas_w, canvas_h, shape_params, color_params):
 
     brush_alpha = np.stack([brush, brush, brush], axis=-1)
     brush_alpha = (brush_alpha > 0).astype(np.float32)
-    brush_alpha = (brush_alpha*255).astype(np.uint8)
-    colormap = np.zeros([brush.shape[0], brush.shape[1], 3], np.float32)
-    for ii in range(brush.shape[0]):
-        t = ii / brush.shape[0]
-        this_color = [(1 - t) * R0 + t * R2,
-                      (1 - t) * G0 + t * G2,
-                      (1 - t) * B0 + t * B2]
-        colormap[ii, :, :] = np.expand_dims(this_color, axis=0)
+    brush_alpha = (brush_alpha * 255).astype(np.uint8)
+    # colormap = np.zeros([brush.shape[0], brush.shape[1], 3], np.float32)
+    # for ii in range(brush.shape[0]):
+    #     t = ii / brush.shape[0]
+    #     this_color = [(1 - t) * R0 + t * R2,
+    #                   (1 - t) * G0 + t * G2,
+    #                   (1 - t) * B0 + t * B2]
+    #     colormap[ii, :, :] = np.expand_dims(this_color, axis=0)
+
+    t = np.linspace(0, 1, brush.shape[0])[:, None]
+    color = (1 - t) * color_params[:3][None, :] + t * color_params[3:][None, :]
+    colormap = np.expand_dims(color, 1)
 
     brush = np.expand_dims(brush, axis=-1).astype(np.float32) / 255.
     brush = (brush * colormap * 255).astype(np.uint8)
     # plt.imshow(brush), plt.show()
 
     M1 = build_transformation_matrix([-brush.shape[1]/2, -brush.shape[0]/2, 0])
-    M2 = build_scale_matrix(sx=w/brush.shape[1], sy=h/brush.shape[0])
-    M3 = build_transformation_matrix([0, 0, theta])
-    M4 = build_transformation_matrix([x0, y0, 0])
+    M2 = build_scale_matrix(sx=shape_params[2]/brush.shape[1], sy=shape_params[3]/brush.shape[0])
+    M3 = build_transformation_matrix([0, 0, shape_params[4]])
+    M4 = build_transformation_matrix([shape_params[0], shape_params[1], 0])
 
     M = update_transformation_matrix(M1, M2)
     M = update_transformation_matrix(M, M3)
