@@ -17,7 +17,7 @@ class OilBrush(Renderer):
 
     def _process_params(self):
         self.shape_params[:4] = self._scaling(self.shape_params[:4])
-        self.shape_params[5] *= np.math.pi
+        self.shape_params[4] *= np.math.pi
 
     def draw_stroke(self):
         # xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2, A

@@ -41,13 +41,14 @@ class Renderer(object):
         self.canvas = self.foreground * self.stroke_alpha_map + self.canvas * (1 - self.stroke_alpha_map)
 
     def _scaling(self, x):
-        return (int)(x * (self.canvas_width - 1) + 0.5)
+        return x * (self.canvas_width - 1) + 0.5
 
     def draw_stroke(self):
         raise NotImplemented
 
     def generate_dataset(self, batch_size=64):
         assert self.shape_size is not None and self.color_size is not None
+
         def _gen():
             while True:
                 self.random_params()
