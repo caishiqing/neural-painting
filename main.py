@@ -35,7 +35,7 @@ def train_renderer(canvas_width: int = 128,
               epochs=train_args.pop('epochs', 100),
               steps_per_epoch=train_args.pop('steps_per_epoch', 500),
               callbacks=callbacks,
-              verbose=train_args.pop('train_args', 1))
+              verbose=train_args.pop('verbose', 1))
 
 
 if __name__ == '__main__':
