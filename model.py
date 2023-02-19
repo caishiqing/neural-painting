@@ -87,7 +87,8 @@ def RenderNet(param_size, canvas_width):
     h = layers.Conv2D(8, 3, padding='same', activation='relu')(h)
     h = layers.Conv2D(4*6, 3, padding='same')(h)
     h = PixelShuffle(2)(h)
-    foreground, stroke_alpha_map = layers.Lambda(lambda x: tf.split(x, 2, axis=3))(h)
+    foreground = layers.Lambda(lambda x: x[:, :, :, :3], name='foreground')(h)
+    stroke_alpha_map = layers.Lambda(lambda x: x[:, :, :, 3:], name='alpha')(h)
 
     model = tf.keras.Model(inputs=x, outputs=[foreground, stroke_alpha_map])
     model.save = types.MethodType(save_model, model)
