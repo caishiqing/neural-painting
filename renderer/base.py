@@ -33,31 +33,43 @@ class Renderer(object):
         return self.shape_size + self.color_size + 1
 
     def random_params(self):
-        self.shape_params = np.random.uniform(0, 1, size=self.shape_size)
-        self.color_params = np.random.uniform(0, 1, size=self.color_size)
-        self.alpha = np.random.uniform(0, 1)
+        return np.random.uniform(0, 1, size=self.param_size)
 
-    def _update_canvas(self):
-        self.canvas = self.foreground * self.stroke_alpha_map + self.canvas * (1 - self.stroke_alpha_map)
+    def _update_canvas(self, foreground, stroke_alpha_map):
+        self.canvas = foreground * stroke_alpha_map + self.canvas * (1 - stroke_alpha_map)
 
     def _scaling(self, x):
         return x * (self.canvas_width - 1) + 0.5
 
-    def draw_stroke(self):
+    def _parse_params(self, params):
+        shape_params = params[:self.shape_size]
+        color_params = params[self.shape_size:self.shape_size+self.color_size]
+        alpha = params[-1]
+        return shape_params, color_params, alpha
+
+    def draw_stroke(self, params: np.ndarray) -> np.ndarray:
+        # from stroke params to stroke foreground
         raise NotImplemented
+
+    def update_canvas(self, params):
+        # xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2, A
+        foreground, stroke_alpha_map = self._draw_stroke(params)
+        self.canvas = foreground * stroke_alpha_map + self.canvas * (1 - stroke_alpha_map)
 
     def generate_dataset(self, batch_size=64):
         assert self.shape_size is not None and self.color_size is not None
 
         def _gen():
             while True:
-                self.random_params()
-                self.draw_stroke()
-                yield self.params, self.foreground
+                yield self.random_params()
 
+        def _render(params):
+            foreground, stroke_alpha_map = tf.py_function(self.draw_stroke, [params], Tout=[tf.float32, tf.float32])
+            return params, (foreground, stroke_alpha_map)
+
+        autotune = tf.data.experimental.AUTOTUNE
         dataset = tf.data.Dataset.from_generator(
-            _gen, output_types=(tf.float32, tf.float32),
-            output_shapes=((self.param_size,), (self.canvas_width, self.canvas_width, 3))
-        ).batch(batch_size)
+            _gen, output_types=tf.float32, output_shapes=(self.param_size,)
+        ).map(_render, autotune).batch(batch_size)
 
         return dataset
