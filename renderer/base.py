@@ -53,13 +53,15 @@ class Renderer(object):
             while True:
                 yield self.random_params()
 
-        def _render(params):
-            foreground, stroke_alpha_map = tf.py_function(self.draw_stroke, [params], Tout=[tf.float32, tf.float32])
+        def _draw(params):
+            foreground, stroke_alpha_map = tf.py_function(self.draw_stroke,
+                                                          inp=[params],
+                                                          Tout=[tf.float32, tf.float32])
             return params, (foreground, stroke_alpha_map)
 
         autotune = tf.data.experimental.AUTOTUNE
         dataset = tf.data.Dataset.from_generator(
             _gen, output_types=tf.float32, output_shapes=(self.param_size,)
-        ).map(_render, autotune).batch(batch_size)
+        ).map(_draw, autotune).batch(batch_size)
 
         return dataset
