@@ -47,13 +47,6 @@ class OilBrush(Renderer):
         brush_alpha = np.stack([brush, brush, brush], axis=-1)
         brush_alpha = (brush_alpha > 0).astype(np.float32)
         brush_alpha = (brush_alpha * 255).astype(np.uint8)
-        # colormap = np.zeros([brush.shape[0], brush.shape[1], 3], np.float32)
-        # for ii in range(brush.shape[0]):
-        #     t = ii / brush.shape[0]
-        #     this_color = [(1 - t) * R0 + t * R2,
-        #                   (1 - t) * G0 + t * G2,
-        #                   (1 - t) * B0 + t * B2]
-        #     colormap[ii, :, :] = np.expand_dims(this_color, axis=0)
 
         t = np.linspace(0, 1, brush.shape[0])[:, None]
         color = (1 - t) * color_params[:3][None, :] + t * color_params[3:][None, :]

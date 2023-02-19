@@ -5,11 +5,6 @@ import numpy as np
 class Renderer(object):
     shape_size = None
     color_size = None
-    shape_params = None
-    color_params = None
-    alpha = None
-    foreground = None
-    stroke_alpha_map = None
 
     def __init__(self, canvas_width=128, canvas_color='white', train=False):
         self.canvas_width = canvas_width
@@ -23,14 +18,9 @@ class Renderer(object):
             raise Exception(f"Canvas colour '{canvas_color}' is not supported!")
 
     @property
-    def params(self):
-        assert self.shape_params is not None and self.color_params is not None and self.alpha is not None
-        return np.concatenate([self.shape_params, self.color_params, [self.alpha]])
-
-    @property
     def param_size(self):
         assert self.shape_size is not None and self.color_size is not None
-        return self.shape_size + self.color_size + 1
+        return self.shape_size + self.color_size
 
     def random_params(self):
         return np.random.uniform(0, 1, size=self.param_size)
