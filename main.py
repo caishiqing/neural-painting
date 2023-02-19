@@ -17,10 +17,9 @@ def train_renderer(canvas_width: int = 128,
     dataset = renderer.generate_dataset(train_args.pop('batch_size', 64))
     model = RenderNet(renderer.param_size, canvas_width)
     model.compile(optimizer=tf.keras.optimizers.Adam(train_args.pop('learning_rate', 1e-3)),
-                  loss=PixelLoss(
-        power=train_args.pop('power', 1),
-        ignore_color=train_args.pop('ignore_color', False)
-    ))
+                  loss=PixelLoss(power=train_args.pop('power', 1),
+                                 ignore_color=train_args.pop('ignore_color', False))
+                  )
 
     if save_path is not None:
         checkpoint = tf.keras.callbacks.ModelCheckpoint(filepath=save_path,

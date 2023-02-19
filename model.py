@@ -67,29 +67,29 @@ class PixelShuffle(layers.Layer):
 
 def RenderNet(param_size, canvas_width):
     fmap_size = canvas_width // 8
-    model = tf.keras.Sequential(
-        layers=[
-            layers.Input((param_size,), dtype=tf.float32),
-            layers.Dense(512, activation='relu'),
-            layers.Dense(1024, activation='relu'),
-            layers.Dense(2048, activation='relu'),
-            layers.Dense(fmap_size * fmap_size * 16),
-            layers.BatchNormalization(),
-            layers.Activation('relu'),
-            layers.Reshape([fmap_size, fmap_size, 16]),
-            layers.Conv2D(32, 3, padding='same', activation='relu'),
-            layers.Conv2D(32, 3, padding='same'),
-            PixelShuffle(2),
-            layers.Conv2D(16, 3, padding='same', activation='relu'),
-            layers.Conv2D(16, 3, padding='same'),
-            PixelShuffle(2),
-            layers.Conv2D(8, 3, padding='same', activation='relu'),
-            layers.Conv2D(4*3, 3, padding='same'),
-            PixelShuffle(2),
-            layers.BatchNormalization(),
-            layers.Activation('sigmoid')
-        ]
-    )
+
+    x = layers.Input((param_size,), dtype=tf.float32)
+    h = layers.Dense(512, activation='relu')(x)
+    h = layers.Dense(1024, activation='relu')(h)
+    h = layers.Dense(2048, activation='relu')(h)
+    h = layers.Dense(fmap_size * fmap_size * 16)(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
+    h = layers.Reshape([fmap_size, fmap_size, 16])(h)
+    h = layers.Conv2D(32, 3, padding='same', activation='relu')(h)
+    h = layers.Conv2D(32, 3, padding='same')(h)
+    h = PixelShuffle(2)(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Conv2D(16, 3, padding='same', activation='relu')(h)
+    h = layers.Conv2D(16, 3, padding='same')(h)
+    h = PixelShuffle(2)(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Conv2D(8, 3, padding='same', activation='relu')(h)
+    h = layers.Conv2D(4*6, 3, padding='same')(h)
+    h = PixelShuffle(2)(h)
+    foreground, stroke_alpha_map = layers.Lambda(lambda x: tf.split(x, 2, axis=3))(h)
+
+    model = tf.keras.Model(inputs=x, outputs=[foreground, stroke_alpha_map])
     model.save = types.MethodType(save_model, model)
     return model
 
