@@ -1,28 +1,7 @@
 from tensorflow.keras import layers
+from tensorflow.keras import models
 import tensorflow as tf
 import types
-
-
-# def RenderNet(param_size, canvas_width):
-#     fmap_size = canvas_width // 8
-#     model = tf.keras.Sequential(
-#         layers=[
-#             layers.Input((param_size,), dtype=tf.float32),
-#             layers.Dense(512, activation='relu'),
-#             layers.Dense(1024, activation='relu'),
-#             layers.Dense(2048, activation='relu'),
-#             layers.Dense(fmap_size * fmap_size * 12),
-#             layers.BatchNormalization(),
-#             layers.Activation('relu'),
-#             layers.Reshape([canvas_width//4, canvas_width//4, 3]),
-#             layers.Conv2DTranspose(8, 3, 2, padding='same', activation='relu'),
-#             layers.Conv2DTranspose(3, 3, 2, padding='same'),
-#             layers.BatchNormalization(),
-#             layers.Activation('sigmoid')
-#         ]
-#     )
-#     model.save = types.MethodType(save_model, model)
-#     return model
 
 
 class PixelShuffle(layers.Layer):
@@ -65,41 +44,84 @@ class PixelShuffle(layers.Layer):
         return b, h*r, w*r, c//(r**2)
 
 
-def RenderNet(param_size, canvas_width):
-    fmap_size = canvas_width // 8
-
-    x = layers.Input((param_size,), dtype=tf.float32)
-    h = layers.Dense(512, activation='relu')(x)
-    h = layers.Dense(1024, activation='relu')(h)
-    h = layers.Dense(2048, activation='relu')(h)
-    h = layers.Dense(fmap_size * fmap_size * 16)(h)
+def RasterNet(x):
+    h = layers.Conv2D(64, 3, padding='same', activation='relu')(x)
+    h = layers.Conv2D(64, 3, padding='same')(h)
+    h = PixelShuffle(2)(h)
     h = layers.BatchNormalization()(h)
     h = layers.Activation('relu')(h)
-    h = layers.Reshape([fmap_size, fmap_size, 16])(h)
     h = layers.Conv2D(32, 3, padding='same', activation='relu')(h)
     h = layers.Conv2D(32, 3, padding='same')(h)
     h = PixelShuffle(2)(h)
     h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
     h = layers.Conv2D(16, 3, padding='same', activation='relu')(h)
     h = layers.Conv2D(16, 3, padding='same')(h)
     h = PixelShuffle(2)(h)
     h = layers.BatchNormalization()(h)
-    h = layers.Conv2D(8, 3, padding='same', activation='relu')(h)
-    h = layers.Conv2D(4*6, 3, padding='same')(h)
-    h = PixelShuffle(2)(h)
-    foreground = layers.Lambda(lambda x: x[:, :, :, :3], name='foreground')(h)
-    stroke_alpha_map = layers.Lambda(lambda x: x[:, :, :, 3:], name='alpha')(h)
+    h = layers.Activation('relu')(h)
 
-    model = tf.keras.Model(inputs=x, outputs=[foreground, stroke_alpha_map])
+    y = layers.Dense(1, activation='sigmoid', name='Raster')(h)
+    return y
+
+
+def ShadeNet(x):
+    h = layers.Conv2DTranspose(128, 3, 2, padding='same')(x)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
+    h = layers.Conv2DTranspose(64, 3, 2, padding='same')(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
+    h = layers.Conv2DTranspose(32, 3, 2, padding='same')(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
+    h = layers.Conv2DTranspose(16, 3, 2, padding='same')(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
+    h = layers.Conv2DTranspose(8, 3, 2, padding='same')(h)
+    h = layers.BatchNormalization()(h)
+    h = layers.Activation('relu')(h)
+
+    y = layers.Dense(3, activation='sigmoid', name='Shade')(h)
+    return y
+
+
+def RenderNet(param_size, canvas_width=128):
+    x = layers.Input((param_size,), dtype=tf.float32)
+    h = layers.Dense(512, activation='relu')(x)
+    h = layers.Dense(1024, activation='relu')(h)
+    h = layers.Dense(2048, activation='relu')(h)
+
+    h_raster = layers.Dense(canvas_width * canvas_width // 4)(h)
+    h_raster = layers.BatchNormalization()(h_raster)
+    h_raster = layers.Activation('relu')(h_raster)
+    h_raster = layers.Reshape(
+        [canvas_width // 8, canvas_width // 8, 16])(h_raster)
+    y_raster = RasterNet(h_raster)
+
+    h_shade = layers.Dense(canvas_width * canvas_width // 8)(h)
+    h_shade = layers.BatchNormalization()(h_shade)
+    h_shade = layers.Activation('relu')(h_shade)
+    h_shade = layers.Reshape(
+        [canvas_width // 32, canvas_width // 32, 128])(h_shade)
+    y_shade = ShadeNet(h_shade)
+
+    model = models.Model(inputs=x, outputs=[y_raster, y_shade])
     model.save = types.MethodType(save_model, model)
     return model
 
 
 def save_model(cls, filepath, **kwargs):
     kwargs["include_optimizer"] = False
-    tf.keras.models.save_model(cls, filepath, **kwargs)
+    models.save_model(cls, filepath, **kwargs)
 
 
 tf.keras.utils.get_custom_objects().update(
     {'PixelShuffle': PixelShuffle}
 )
+
+
+if __name__ == '__main__':
+    model = RenderNet(9, 128)
+    model.summary()
+    print(model.outputs)
