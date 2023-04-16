@@ -11,11 +11,14 @@ class Renderer(object):
         self.canvas_colour = canvas_color
         self.train = train
         if canvas_color == 'white':
-            self.canvas = np.ones((canvas_width, canvas_width, 3), dtype=np.float32)
+            self.canvas = np.ones(
+                (canvas_width, canvas_width, 3), dtype=np.float32)
         elif canvas_color == 'black':
-            self.canvas = np.zeros((canvas_width, canvas_width, 3), dtype=np.float32)
+            self.canvas = np.zeros(
+                (canvas_width, canvas_width, 3), dtype=np.float32)
         else:
-            raise Exception(f"Canvas colour '{canvas_color}' is not supported!")
+            raise Exception(
+                f"Canvas colour '{canvas_color}' is not supported!")
 
     @property
     def param_size(self):
@@ -26,7 +29,8 @@ class Renderer(object):
         return np.random.uniform(0, 1, size=self.param_size)
 
     def _update_canvas(self, foreground, stroke_alpha_map):
-        self.canvas = foreground * stroke_alpha_map + self.canvas * (1 - stroke_alpha_map)
+        self.canvas = foreground * stroke_alpha_map + \
+            self.canvas * (1 - stroke_alpha_map)
 
     def _scaling(self, x):
         return x * (self.canvas_width - 1) + 0.5
@@ -44,7 +48,8 @@ class Renderer(object):
     def update_canvas(self, params):
         # xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2, A
         foreground, stroke_alpha_map = self._draw_stroke(params)
-        self.canvas = foreground * stroke_alpha_map + self.canvas * (1 - stroke_alpha_map)
+        self.canvas = foreground * stroke_alpha_map + \
+            self.canvas * (1 - stroke_alpha_map)
 
     def generate_dataset(self, batch_size=64):
         assert self.shape_size is not None and self.color_size is not None
@@ -54,10 +59,12 @@ class Renderer(object):
                 yield self.random_params()
 
         def _draw(params):
-            foreground, stroke_alpha_map = tf.py_function(self.draw_stroke,
-                                                          inp=[params],
-                                                          Tout=[tf.float32, tf.float32])
-            return params, (foreground, stroke_alpha_map)
+            raster, shade = tf.py_function(self.draw_stroke,
+                                           inp=[params],
+                                           Tout=[tf.float32, tf.float32])
+            raster.set_shape([self.canvas_width, self.canvas_width, 1])
+            shade.set_shape([self.canvas_width, self.canvas_width, 3])
+            return params, (raster, shade)
 
         autotune = tf.data.experimental.AUTOTUNE
         dataset = tf.data.Dataset.from_generator(

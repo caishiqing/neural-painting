@@ -12,13 +12,18 @@ def train_renderer(canvas_width: int = 128,
                    save_path: str = None,
                    **train_args):
 
+    gpus = tf.config.experimental.list_physical_devices(device_type='GPU')
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
+
     assert renderer_type in RENDERER_FACTORY
-    renderer = RENDERER_FACTORY[renderer_type](canvas_width, canvas_color, True)
+    renderer = RENDERER_FACTORY[renderer_type](
+        canvas_width, canvas_color, True)
+
     dataset = renderer.generate_dataset(train_args.pop('batch_size', 64))
     model = RenderNet(renderer.param_size, canvas_width)
     model.compile(optimizer=tf.keras.optimizers.Adam(train_args.pop('learning_rate', 1e-3)),
-                  loss=PixelLoss(power=train_args.pop('power', 1),
-                                 ignore_color=train_args.pop('ignore_color', False))
+                  loss=[tf.keras.losses.BinaryCrossentropy(), PixelLoss()]
                   )
 
     if save_path is not None:
@@ -27,6 +32,7 @@ def train_renderer(canvas_width: int = 128,
                                                         save_best_only=True,
                                                         save_weights_only=False)
         callbacks = [checkpoint]
+        print(checkpoint)
     else:
         callbacks = None
 
