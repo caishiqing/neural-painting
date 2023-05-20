@@ -4,7 +4,7 @@ import cv2
 
 
 class OilBrush(Renderer):
-    # params: [xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2, A]
+    # params: [xc, yc, w, h, theta, R0, G0, B0, R2, G2, B2]
     shape_size = 5
     color_size = 6
     brush_small_vertical = cv2.imread(
@@ -33,32 +33,32 @@ class OilBrush(Renderer):
             else:
                 brush = self.brush_small_horizontal
 
-        stroke_alpha_map, foreground = self.create_transformed_brush(
-            brush, self.canvas_width, self.canvas_width, params)
+        alpha, brush = self.create_transformed_brush(brush,
+                                                     self.canvas_width,
+                                                     self.canvas_width,
+                                                     params)
 
         if not self.train:
-            stroke_alpha_map = cv2.erode(stroke_alpha_map, np.ones([2, 2]))
-            foreground = cv2.dilate(foreground, np.ones([2, 2]))
+            alpha = cv2.dilate(alpha, np.ones([2, 2]))
+            brush = cv2.dilate(brush, np.ones([2, 2]))
 
-        return stroke_alpha_map / 255, foreground / 255
+        if len(alpha.shape) == 2:
+            alpha = np.expand_dims(alpha, -1)
+
+        return alpha, brush
 
     def create_transformed_brush(self, brush, canvas_w, canvas_h, params):
         shape_params, color_params, _ = self._parse_params(params)
-        brush_alpha = np.stack([brush, brush, brush], axis=-1)
-        brush_alpha = (brush_alpha > 0).astype(np.float32)
-        brush_alpha = (brush_alpha * 255).astype(np.uint8)
+        alpha = (brush > 0).astype(np.float32)[:, :, None]
 
         t = np.linspace(0, 1, brush.shape[0])[:, None]
-        color = (1 - t) * color_params[:3][None,
-                                           :] + t * color_params[3:][None, :]
+        color = (1 - t) * color_params[:3][None, :] + t * color_params[3:][None, :]
         colormap = np.expand_dims(color, 1)
 
-        brush = np.expand_dims(brush, axis=-1).astype(np.float32) / 255.
-        brush = (brush * colormap * 255).astype(np.uint8)
-        # plt.imshow(brush), plt.show()
+        brush = brush.astype(np.float32)[:, :, None] / 255
+        brush = brush * colormap
 
-        M1 = build_transformation_matrix(
-            [-brush.shape[1]/2, -brush.shape[0]/2, 0])
+        M1 = build_transformation_matrix([-brush.shape[1]/2, -brush.shape[0]/2, 0])
         M2 = build_scale_matrix(
             sx=shape_params[2]/brush.shape[1], sy=shape_params[3]/brush.shape[0])
         M3 = build_transformation_matrix([0, 0, shape_params[4]])
@@ -68,15 +68,15 @@ class OilBrush(Renderer):
         M = update_transformation_matrix(M, M3)
         M = update_transformation_matrix(M, M4)
 
-        brush_alpha = cv2.warpAffine(
-            brush_alpha, M, (canvas_w, canvas_h),
+        alpha = cv2.warpAffine(
+            alpha, M, (canvas_w, canvas_h),
             borderMode=cv2.BORDER_CONSTANT, flags=cv2.INTER_AREA)
 
         brush = cv2.warpAffine(
             brush, M, (canvas_w, canvas_h),
             borderMode=cv2.BORDER_CONSTANT, flags=cv2.INTER_AREA)
 
-        return np.mean(brush_alpha, axis=-1, keepdims=True), brush
+        return alpha, brush
 
 
 def build_scale_matrix(sx, sy):
