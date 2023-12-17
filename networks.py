@@ -8,7 +8,6 @@ from torch.optim import lr_scheduler
 import math
 import utils
 import matplotlib.pyplot as plt
-import numpy as np
 
 # Decide which device we want to run on
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -23,6 +22,7 @@ class Identity(nn.Module):
     def forward(self, x):
         return x
 
+
 def get_norm_layer(norm_type='instance'):
     """Return a normalization layer
 
@@ -33,13 +33,16 @@ def get_norm_layer(norm_type='instance'):
     For InstanceNorm, we do not use learnable affine parameters. We do not track running statistics.
     """
     if norm_type == 'batch':
-        norm_layer = functools.partial(nn.BatchNorm2d, affine=True, track_running_stats=True)
+        norm_layer = functools.partial(
+            nn.BatchNorm2d, affine=True, track_running_stats=True)
     elif norm_type == 'instance':
-        norm_layer = functools.partial(nn.InstanceNorm2d, affine=False, track_running_stats=False)
+        norm_layer = functools.partial(
+            nn.InstanceNorm2d, affine=False, track_running_stats=False)
     elif norm_type == 'none':
-        norm_layer = lambda x: Identity()
+        def norm_layer(x): return Identity()
     else:
-        raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
+        raise NotImplementedError(
+            'normalization layer [%s] is not found' % norm_type)
     return norm_layer
 
 
@@ -66,10 +69,12 @@ def init_weights(net, init_type='normal', init_gain=0.02):
             elif init_type == 'orthogonal':
                 init.orthogonal_(m.weight.data, gain=init_gain)
             else:
-                raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
+                raise NotImplementedError(
+                    'initialization method [%s] is not implemented' % init_type)
             if hasattr(m, 'bias') and m.bias is not None:
                 init.constant_(m.bias.data, 0.0)
-        elif classname.find('BatchNorm2d') != -1:  # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
+        # BatchNorm Layer's weight is not a matrix; only normal distribution applies.
+        elif classname.find('BatchNorm2d') != -1:
             init.normal_(m.weight.data, 1.0, init_gain)
             init.constant_(m.bias.data, 0.0)
 
@@ -88,7 +93,7 @@ def init_net(net, init_type='normal', init_gain=0.02, gpu_ids=[]):
     Return an initialized network.
     """
     if len(gpu_ids) > 0:
-        assert(torch.cuda.is_available())
+        assert (torch.cuda.is_available())
         net.to(gpu_ids[0])
         net = torch.nn.DataParallel(net, gpu_ids)  # multi-GPUs
     init_weights(net, init_type, init_gain=init_gain)
@@ -108,7 +113,8 @@ def define_G(rdrr, netG, init_type='normal', init_gain=0.02, gpu_ids=[]):
     elif netG == 'zou-fusion-net-light':
         net = ZouFCNFusionLight(rdrr)
     else:
-        raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
+        raise NotImplementedError(
+            'Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
 
 
@@ -150,8 +156,7 @@ class DCGAN(nn.Module):
 
     def forward(self, input):
         output_tensor = self.main(input)
-        return output_tensor[:,0:3,:,:], output_tensor[:,3:6,:,:]
-
+        return output_tensor[:, 0:3, :, :], output_tensor[:, 3:6, :, :]
 
 
 class DCGAN_32(nn.Module):
@@ -182,8 +187,7 @@ class DCGAN_32(nn.Module):
 
     def forward(self, input):
         output_tensor = self.main(input)
-        return output_tensor[:,0:3,:,:], output_tensor[:,3:6,:,:]
-
+        return output_tensor[:, 0:3, :, :], output_tensor[:, 3:6, :, :]
 
 
 class PixelShuffleNet(nn.Module):
@@ -218,7 +222,6 @@ class PixelShuffleNet(nn.Module):
         return x
 
 
-
 class PixelShuffleNet_32(nn.Module):
     def __init__(self, input_nc):
         super(PixelShuffleNet_32, self).__init__()
@@ -241,8 +244,6 @@ class PixelShuffleNet_32(nn.Module):
         return x
 
 
-
-
 class HuangNet(nn.Module):
     def __init__(self, rdrr):
         super(HuangNet, self).__init__()
@@ -260,7 +261,6 @@ class HuangNet(nn.Module):
         self.conv6 = (nn.Conv2d(8, 4 * 6, 3, 1, 1))
         self.pixel_shuffle = nn.PixelShuffle(2)
 
-
     def forward(self, x):
         x = x.squeeze()
         x = F.relu(self.fc1(x))
@@ -275,8 +275,7 @@ class HuangNet(nn.Module):
         x = F.relu(self.conv5(x))
         x = self.pixel_shuffle(self.conv6(x))
         output_tensor = x.view(-1, 6, 128, 128)
-        return output_tensor[:,0:3,:,:], output_tensor[:,3:6,:,:]
-
+        return output_tensor[:, 0:3, :, :], output_tensor[:, 3:6, :, :]
 
 
 class ZouFCNFusion(nn.Module):
@@ -299,7 +298,6 @@ class ZouFCNFusion(nn.Module):
         return color * mask, x_alpha * mask
 
 
-
 class ZouFCNFusionLight(nn.Module):
     def __init__(self, rdrr):
         super(ZouFCNFusionLight, self).__init__()
@@ -320,8 +318,6 @@ class ZouFCNFusionLight(nn.Module):
         return color * mask, x_alpha * mask
 
 
-
-
 class UNet(torch.nn.Module):
     def __init__(self, rdrr):
         """
@@ -330,7 +326,8 @@ class UNet(torch.nn.Module):
         """
         super(UNet, self).__init__()
         norm_layer = get_norm_layer(norm_type='batch')
-        self.unet = UnetGenerator(rdrr.d, 6, 7, norm_layer=norm_layer, use_dropout=False)
+        self.unet = UnetGenerator(
+            rdrr.d, 6, 7, norm_layer=norm_layer, use_dropout=False)
 
     def forward(self, x):
         """
@@ -341,8 +338,7 @@ class UNet(torch.nn.Module):
         # resnet layers
         x = x.repeat(1, 1, 128, 128)
         output_tensor = self.unet(x)
-        return output_tensor[:,0:3,:,:], output_tensor[:,3:6,:,:]
-
+        return output_tensor[:, 0:3, :, :], output_tensor[:, 3:6, :, :]
 
 
 class UnetGenerator(nn.Module):
@@ -363,14 +359,23 @@ class UnetGenerator(nn.Module):
         """
         super(UnetGenerator, self).__init__()
         # construct unet structure
-        unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)  # add the innermost layer
-        for i in range(num_downs - 5):          # add intermediate layers with ngf * 8 filters
-            unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout)
+        unet_block = UnetSkipConnectionBlock(
+            # add the innermost layer
+            ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)
+        # add intermediate layers with ngf * 8 filters
+        for i in range(num_downs - 5):
+            unet_block = UnetSkipConnectionBlock(
+                ngf * 8, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout)
         # gradually reduce the number of filters from ngf * 8 to ngf
-        unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer)  # add the outermost layer
+        unet_block = UnetSkipConnectionBlock(
+            ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(
+            ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(
+            ngf, ngf * 2, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
+        self.model = UnetSkipConnectionBlock(
+            # add the outermost layer
+            output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer)
 
     def forward(self, input):
         """Standard forward"""
