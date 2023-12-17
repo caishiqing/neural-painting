@@ -1,6 +1,0 @@
-.vscode
-*.hdf5
-*.h5 
-__pycache__
-*.pyc
-*.ipynb
