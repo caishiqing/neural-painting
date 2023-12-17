@@ -2,12 +2,8 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 import functools
-from torchvision import models
 import torch.nn.functional as F
-from torch.optim import lr_scheduler
 import math
-import utils
-import matplotlib.pyplot as plt
 
 # Decide which device we want to run on
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -404,7 +400,7 @@ class UnetSkipConnectionBlock(nn.Module):
         """
         super(UnetSkipConnectionBlock, self).__init__()
         self.outermost = outermost
-        if type(norm_layer) == functools.partial:
+        if type(norm_layer) is functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
         else:
             use_bias = norm_layer == nn.InstanceNorm2d

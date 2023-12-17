@@ -7,7 +7,7 @@ import imageio
 import matplotlib.pyplot as plt
 import torch
 import torch.optim as optim
-from painter import *
+from painter import Painter, utils
 
 
 class Predictor(cog.Predictor):
