@@ -13,7 +13,7 @@ class Renderer(object):
                  train=False):
 
         self.canvas_width = canvas_width
-        self.canvas_colour = canvas_color
+        self.canvas_color = canvas_color
         self.transparency = transparency
         self.train = train
         if canvas_color == 'white':

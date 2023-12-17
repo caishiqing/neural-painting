@@ -125,6 +125,55 @@ class RenderNet(tf.keras.Model):
         super(RenderNet, self).save(filepath, **kwargs)
 
 
+class ProcessRenderNet(tf.keras.Model):
+
+    def __init__(self,
+                 model: tf.keras.Model,
+                 num_strokes: int = 20,
+                 canvas_color: str = "white",
+                 **kwargs):
+
+        super(ProcessRenderNet, self).__init__(**kwargs)
+        self.model = model
+        self.model.trainable = False
+        self.num_strokes = num_strokes
+        self.canvas_color = canvas_color
+
+    def build(self, input_shape):
+        batch_size = input_shape[0]
+        params_size = self.model.input_shape[-1]
+        self.params = self.add_weight(name='params',
+                                      dtype=tf.float32,
+                                      initializer='uniform',
+                                      shape=(batch_size, self.num_strokes, params_size),
+                                      constraint=tf.keras.constraints.MinMaxNorm(0, 1))
+
+        if self.canvas_color == 'white':
+            self.init_canvas = tf.ones_like(self.model.outputs[1])
+        else:
+            self.init_canvas = tf.zeros_like(self.model.outputs[1])
+
+        self.loss_fn = tf.keras.losses.MeanAbsoluteError()
+        self.rnn = layers.Lambda(
+            lambda params: tf.keras.backend.rnn(self._step,
+                                                params,
+                                                self.init_canvas)
+        )
+        self.buit = True
+
+    @tf.function
+    def _step(self, params, states):
+        canvas = states[0]
+        raster, shade = self.model(params)
+        canvas = raster * shade + canvas * (1 - raster)
+        return canvas, [canvas]
+
+    def call(self, ground_truth):
+        predictions, _, _ = self.rnn(self.params)
+        loss = self.loss_fn(ground_truth, predictions)
+        return loss
+
+
 tf.keras.utils.get_custom_objects().update(
     {
         'PixelShuffle': PixelShuffle,
@@ -134,7 +183,7 @@ tf.keras.utils.get_custom_objects().update(
 
 
 if __name__ == '__main__':
-    model = renderNet(9, 128)
-    model.save('model.h5')
-    model = tf.keras.models.load_model('model.h5', compile=False)
-    model.summary()
+    img = layers.Input((128, 128, 3), batch_size=4)
+    model = ProcessRenderNet(renderNet(10))
+    model(img)
+    model.add_loss(model.output)
