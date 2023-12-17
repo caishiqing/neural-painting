@@ -1,17 +1,14 @@
-import os
-import cv2
-import random
-
-import utils
-import loss
-from networks import *
-import morphology
-
-import renderer
-
-import torch
-import numpy as np
 from matplotlib import pyplot as plt
+from networks import define_G
+import numpy as np
+import morphology
+import renderer
+import random
+import utils
+import torch
+import loss
+import cv2
+import os
 
 # Decide which device we want to run on
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
