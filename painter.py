@@ -58,9 +58,7 @@ class Painter(object):
         self.net_G.to(self.device).eval()
 
         # define some other vars to record the training states
-        self.x_ctt = None
-        self.x_color = None
-        self.x_alpha = None
+        self.params = None
 
         self.G_pred_foreground = None
         self.G_pred_alpha = None
@@ -107,16 +105,9 @@ class Painter(object):
         return utils.cpt_batch_psnr(canvas, target, PIXEL_MAX=1.0)
 
     def _save_stroke_params(self, params):
-        d_shape = self.rderr.d_shape
-        d_color = self.rderr.d_color
-        d_alpha = self.rderr.d_alpha
-
-        x_ctt = params[:, :, 0:d_shape]
-        x_color = params[:, :, d_shape:d_shape+d_color]
-        x_alpha = params[:, :, d_shape+d_color:d_shape+d_color+d_alpha]
         self.logger.info('saving stroke parameters...')
         file_name = os.path.join(self.output_dir, self.img_path.split('/')[-1][:-4])
-        np.savez(file_name + '_strokes.npz', x_ctt=x_ctt, x_color=x_color, x_alpha=x_alpha)
+        np.savez(file_name + '_strokes.npz', params=params)
 
     def _shuffle_strokes_and_reshape(self, params):
         grid_idx = list(range(self.m_grid ** 2))
@@ -154,9 +145,9 @@ class Painter(object):
                 self.rderr.draw_stroke()
             this_frame = self.rderr.canvas
             this_frame = cv2.resize(this_frame, (out_w, out_h), cv2.INTER_AREA)
-            if save_jpgs:
-                plt.imsave(file_name + '_rendered_stroke_' + str((i+1)).zfill(4) +
-                           '.png', this_frame)
+            # if save_jpgs:
+            #     plt.imsave(file_name + '_rendered_stroke_' + str((i+1)).zfill(4) +
+            #                '.png', this_frame)
             if save_video:
                 video_writer.write(
                     (this_frame[:, :, ::-1] * 255.).astype(np.uint8))
@@ -188,15 +179,9 @@ class Painter(object):
         return params
 
     def initialize_params(self):
-        self.x_ctt = torch.rand((self.m_grid*self.m_grid, self.num_strokes_per_block, self.rderr.d_shape),
-                                dtype=torch.float32, device=self.device)
-        self.x_color = torch.rand((self.m_grid*self.m_grid, self.num_strokes_per_block, self.rderr.d_color),
-                                  dtype=torch.float32, device=self.device)
-        self.x_alpha = torch.rand((self.m_grid*self.m_grid, self.num_strokes_per_block, self.rderr.d_alpha),
-                                  dtype=torch.float32, device=self.device)
-        self.x_ctt.requires_grad = True
-        self.x_color.requires_grad = True
-        self.x_alpha.requires_grad = True
+        self.params = torch.rand((self.m_grid*self.m_grid, self.num_strokes_per_block, self.rderr.param_size),
+                                 dtype=torch.float32, device=self.device)
+        self.params.requires_grad = True
 
     def stroke_sampler(self, anchor_id):
         if anchor_id == self.num_strokes_per_block:
@@ -213,9 +198,7 @@ class Painter(object):
             this_img = self.img_batch[i, :, :, :].detach().permute([1, 2, 0]).cpu().numpy()
             self.rderr.random_stroke_params_sampler(err_map=this_err_map, img=this_img)
             params = torch.tensor(self.rderr.stroke_params)
-            self.x_ctt.data[i, anchor_id, :] = params[0:self.rderr.d_shape]
-            self.x_color.data[i, anchor_id, :] = params[self.rderr.d_shape:self.rderr.d_shape+self.rderr.d_color]
-            self.x_alpha.data[i, anchor_id, :] = params[-1]
+            self.params.data[i, anchor_id, :] = params
 
     def _backward_x(self):
         self.G_loss = 0
@@ -227,11 +210,10 @@ class Painter(object):
         self.G_loss.backward()
 
     def _forward_pass(self):
-        self.x = torch.cat([self.x_ctt, self.x_color, self.x_alpha], dim=-1)
-        v = torch.reshape(self.x[:, 0:self.anchor_id+1, :],
-                          [self.m_grid*self.m_grid*(self.anchor_id+1), -1, 1, 1])
+        params = torch.reshape(self.params[:, 0:self.anchor_id+1, :],
+                               [self.m_grid*self.m_grid*(self.anchor_id+1), -1, 1, 1])
 
-        self.G_pred_foregrounds, self.G_pred_alphas = self.net_G(v)
+        self.G_pred_foregrounds, self.G_pred_alphas = self.net_G(params)
 
         self.G_pred_foregrounds = morphology.Dilation2d(m=1)(self.G_pred_foregrounds)
         self.G_pred_alphas = morphology.Erosion2d(m=1)(self.G_pred_alphas)
@@ -265,35 +247,32 @@ class Painter(object):
 
     def optimize(self):
         self.logger.info('begin drawing...')
-
         PARAMS = np.zeros([1, 0, self.rderr.param_size], np.float32)
 
         if self.rderr.canvas_color == 'white':
-            CANVAS_tmp = torch.ones([1, 3, self.net_G.out_size, self.net_G.out_size]).to(self.device)
+            canvas = torch.ones([1, 3, self.net_G.out_size, self.net_G.out_size]).to(self.device)
         else:
-            CANVAS_tmp = torch.zeros([1, 3, self.net_G.out_size, self.net_G.out_size]).to(self.device)
+            canvas = torch.zeros([1, 3, self.net_G.out_size, self.net_G.out_size]).to(self.device)
 
         for self.m_grid in range(self.m_grid, self.max_divide + 1):
-
+            # for each scale level
             self.img_batch = utils.img2patches(self.target_image, self.m_grid, self.net_G.out_size).to(self.device)
-            self.G_final_pred_canvas = CANVAS_tmp
+            self.G_final_pred_canvas = canvas
 
             self.initialize_params()
             utils.set_requires_grad(self.net_G, False)
-
-            self.optimizer_x = torch.optim.RMSprop([self.x_ctt, self.x_color, self.x_alpha],
-                                                   lr=self.lr, centered=True)
+            optimizer = torch.optim.RMSprop([self.params], lr=self.lr, centered=True)
 
             self.step_id = 0
+            iters_per_stroke = int(500 / self.num_strokes_per_block)
             for self.anchor_id in range(0, self.num_strokes_per_block):
                 self.stroke_sampler(self.anchor_id)
-                iters_per_stroke = int(500 / self.num_strokes_per_block)
                 pbar = tqdm(range(iters_per_stroke))
                 for _ in pbar:
-                    self.G_pred_canvas = CANVAS_tmp
+                    self.G_pred_canvas = canvas
 
                     # update x
-                    self.optimizer_x.zero_grad()
+                    optimizer.zero_grad()
                     self._forward_pass()
                     self._drawing_step_states()
                     self._backward_x()
@@ -302,18 +281,17 @@ class Painter(object):
                                          % (self.step_id, self.G_loss.item(), self.psnr.item(), self.m_grid, self.max_divide,
                                             self.anchor_id + 1, self.num_strokes_per_block))
 
-                    self.x_ctt.data = torch.clamp(self.x_ctt.data, 0.1, 1 - 0.1)
-                    self.x_color.data = torch.clamp(self.x_color.data, 0, 1)
-                    self.x_alpha.data = torch.clamp(self.x_alpha.data, 0, 1)
+                    self.params.data = torch.clamp(self.params.data, 0, 1)
+                    self.params.data[:, :, :self.rderr.d_shape] = torch.clamp(self.params.data[:, :, :self.rderr.d_shape], 0.1, 0.9)
 
-                    self.optimizer_x.step()
+                    optimizer.step()
                     self.step_id += 1
 
-            v = self._normalize_strokes(self.x)
+            v = self._normalize_strokes(self.params)
             v = self._shuffle_strokes_and_reshape(v)
             PARAMS = np.concatenate([PARAMS, v], axis=1)
-            CANVAS_tmp = self._render(PARAMS, save_jpgs=False, save_video=False)
-            CANVAS_tmp = utils.img2patches(CANVAS_tmp, self.m_grid + 1, self.net_G.out_size).to(self.device)
+            canvas = self._render(PARAMS, save_jpgs=False, save_video=False)
+            canvas = utils.img2patches(canvas, self.m_grid + 1, self.net_G.out_size).to(self.device)
 
         self._save_stroke_params(PARAMS)
         self._render(PARAMS, save_jpgs=True, save_video=True)
