@@ -1,22 +1,17 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import cv2
 from skimage.metrics import structural_similarity as sk_cpt_ssim
-
-
-import os
-import glob
+import numpy as np
+import cv2
 import random
 
 import torch
 import torchvision.transforms.functional as TF
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import renderer
 
 
-
 M_RENDERING_SAMPLES_PER_EPOCH = 50000
+
 
 class PairedDataAugmentation:
 
@@ -91,7 +86,6 @@ class PairedDataAugmentation:
         return img1, img2
 
 
-
 class StrokeDataset(Dataset):
 
     def __init__(self, args, is_train=True):
@@ -128,8 +122,6 @@ class StrokeDataset(Dataset):
         return data
 
 
-
-
 def get_renderer_loaders(args):
 
     training_set = StrokeDataset(args, is_train=True)
@@ -141,7 +133,6 @@ def get_renderer_loaders(args):
                    for x in ['train', 'val']}
 
     return dataloaders
-
 
 
 def set_requires_grad(nets, requires_grad=False):
@@ -158,15 +149,13 @@ def set_requires_grad(nets, requires_grad=False):
                 param.requires_grad = requires_grad
 
 
-
 def make_numpy_grid(tensor_data):
     tensor_data = tensor_data.detach()
     vis = utils.make_grid(tensor_data)
-    vis = np.array(vis.cpu()).transpose((1,2,0))
+    vis = np.array(vis.cpu()).transpose((1, 2, 0))
     if vis.shape[2] == 1:
         vis = np.stack([vis, vis, vis], axis=-1)
     return vis.clip(min=0, max=1)
-
 
 
 def tensor2img(tensor_data):
@@ -177,7 +166,6 @@ def tensor2img(tensor_data):
     if img.shape[2] == 1:
         img = np.stack([img, img, img], axis=-1)
     return img.clip(min=0, max=1)
-
 
 
 def cpt_ssim(img, img_gt, normalize=False):
@@ -246,14 +234,13 @@ def img2patches(img, m_grid, s, to_tensor=True):
     for y_id in range(m_grid):
         for x_id in range(m_grid):
             patch = img[y_id * s:y_id * s + s,
-                    x_id * s:x_id * s + s, :].transpose([2, 0, 1])
+                        x_id * s:x_id * s + s, :].transpose([2, 0, 1])
             img_batch[y_id * m_grid + x_id, :, :, :] = patch
 
     if to_tensor:
         img_batch = torch.tensor(img_batch)
 
     return img_batch
-
 
 
 def patches2img(img_batch, m_grid, to_numpy=True):
@@ -271,15 +258,13 @@ def patches2img(img_batch, m_grid, to_numpy=True):
     if to_numpy:
         img = img.detach().numpy()
     else:
-        img = img.permute([2,0,1]).unsqueeze(0)
+        img = img.permute([2, 0, 1]).unsqueeze(0)
 
     return img
 
 
-
-
 def create_transformed_brush(brush, canvas_w, canvas_h,
-                      x0, y0, w, h, theta, R0, G0, B0, R2, G2, B2):
+                             x0, y0, w, h, theta, R0, G0, B0, R2, G2, B2):
 
     brush_alpha = np.stack([brush, brush, brush], axis=-1)
     brush_alpha = (brush_alpha > 0).astype(np.float32)
@@ -298,7 +283,7 @@ def create_transformed_brush(brush, canvas_w, canvas_h,
 
     M1 = build_transformation_matrix([-brush.shape[1]/2, -brush.shape[0]/2, 0])
     M2 = build_scale_matrix(sx=w/brush.shape[1], sy=h/brush.shape[0])
-    M3 = build_transformation_matrix([0,0,theta])
+    M3 = build_transformation_matrix([0, 0, theta])
     M4 = build_transformation_matrix([x0, y0, 0])
 
     M = update_transformation_matrix(M1, M2)
@@ -325,14 +310,15 @@ def build_scale_matrix(sx, sy):
 def update_transformation_matrix(M, m):
 
     # extend M and m to 3x3 by adding an [0,0,1] to their 3rd row
-    M_ = np.concatenate([M, np.zeros([1,3])], axis=0)
+    M_ = np.concatenate([M, np.zeros([1, 3])], axis=0)
     M_[-1, -1] = 1
-    m_ = np.concatenate([m, np.zeros([1,3])], axis=0)
+    m_ = np.concatenate([m, np.zeros([1, 3])], axis=0)
     m_[-1, -1] = 1
 
     M_new = np.matmul(m_, M_)
     return M_new[0:2, :]
 #
+
 
 def build_transformation_matrix(transform):
     """Convert transform list to transformation matrix
@@ -350,6 +336,3 @@ def build_transformation_matrix(transform):
     transform_matrix[1, 2] = transform[1]
 
     return transform_matrix
-
-
-

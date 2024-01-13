@@ -5,8 +5,10 @@ scipy
 numpy
 torch
 torchvision
+torchviz
 opencv-python
 opencv-contrib-python
 runway-python
 gdown
 pillow
+cog

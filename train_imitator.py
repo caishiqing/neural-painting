@@ -1,8 +1,6 @@
 import argparse
-import numpy as np
-import matplotlib.pyplot as plt
 import utils
-from imitator import*
+from imitator import Imitator
 
 # settings
 parser = argparse.ArgumentParser(description='ZZX TRAIN IMITATOR')
@@ -44,5 +42,3 @@ if __name__ == '__main__':
     #     plt.show()
 
     imt.train_models()
-
-

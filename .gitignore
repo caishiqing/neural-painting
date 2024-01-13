@@ -2,3 +2,7 @@
 *.pyc
 __pycache__
 *.bin
+*.zip
+models
+output
+test.sh

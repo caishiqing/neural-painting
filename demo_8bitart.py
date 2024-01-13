@@ -1,8 +1,10 @@
 import argparse
 import torch
 import torch.optim as optim
+import numpy as np
+import utils
 
-from painter import *
+from painter import ProgressivePainter
 
 # settings
 parser = argparse.ArgumentParser(description='STYLIZED NEURAL PAINTING')
@@ -106,12 +108,10 @@ def optimize_x(pt):
         CANVAS_tmp = utils.img2patches(CANVAS_tmp, pt.m_grid + 1, pt.net_G.out_size).to(device)
 
     pt._save_stroke_params(PARAMS)
-    final_rendered_image = pt._render(PARAMS, save_jpgs=True, save_video=True)
-
+    pt._render(PARAMS, save_jpgs=True, save_video=True)
 
 
 if __name__ == '__main__':
 
     pt = ProgressivePainter(args=args)
     optimize_x(pt)
-

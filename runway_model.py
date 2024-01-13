@@ -1,30 +1,34 @@
-import argparse
-
-import torch
-torch.cuda.current_device()
-import torch.optim as optim
+from painter import ProgressivePainter
 import runway
-from painter import *
+import torch.optim as optim
+from PIL import Image
+import numpy as np
+import argparse
+import torch
+import utils
+import os
+
+torch.cuda.current_device()
 # Decide which device we want to run on
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-from PIL import Image
 
 # settings
 parser = argparse.ArgumentParser(description='STYLIZED NEURAL PAINTING')
 args = parser.parse_args(args=[])
-args.renderer = 'oilpaintbrush' # [watercolor, markerpen, oilpaintbrush, rectangle]
-args.canvas_color = 'black' # [black, white]
-args.canvas_size = 512 # size of the canvas for stroke rendering'
-args.keep_aspect_ratio = False # whether to keep input aspect ratio when saving outputs
-args.max_divide = 5 # divide an image up-to max_divide x max_divide patches
-args.beta_L1 = 1.0 # weight for L1 loss
-args.with_ot_loss = False # set True for imporving the convergence by using optimal transportation loss, but will slow-down the speed
-args.beta_ot = 0.1 # weight for optimal transportation loss
-args.net_G = 'zou-fusion-net' # renderer architecture
-args.renderer_checkpoint_dir = './checkpoints_G_oilpaintbrush' # dir to load the pretrained neu-renderer
-args.lr = 0.005 # learning rate for stroke searching
-args.output_dir = './output' # dir to save painting results
-args.disable_preview = True # disable cv2.imshow, for running remotely without x-display
+args.renderer = 'oilpaintbrush'  # [watercolor, markerpen, oilpaintbrush, rectangle]
+args.canvas_color = 'black'  # [black, white]
+args.canvas_size = 512  # size of the canvas for stroke rendering'
+args.keep_aspect_ratio = False  # whether to keep input aspect ratio when saving outputs
+args.max_divide = 5  # divide an image up-to max_divide x max_divide patches
+args.beta_L1 = 1.0  # weight for L1 loss
+args.with_ot_loss = False  # set True for imporving the convergence by using optimal transportation loss, but will slow-down the speed
+args.beta_ot = 0.1  # weight for optimal transportation loss
+args.net_G = 'zou-fusion-net'  # renderer architecture
+args.renderer_checkpoint_dir = './checkpoints_G_oilpaintbrush'  # dir to load the pretrained neu-renderer
+args.lr = 0.005  # learning rate for stroke searching
+args.output_dir = './output'  # dir to save painting results
+args.disable_preview = True  # disable cv2.imshow, for running remotely without x-display
+
 
 def optimize_x(pt):
 
@@ -89,12 +93,13 @@ def optimize_x(pt):
 
     return final_rendered_image
 
-@runway.command('translate', inputs={'source_imgs': runway.image(description='input image to be translated'), 'Strokes': runway.number(min=100, max=700, default=100,description='number of strokes')
-}, outputs={'image': runway.image(description='output image containing the translated result')})
+
+@runway.command('translate', inputs={'source_imgs': runway.image(description='input image to be translated'), 'Strokes': runway.number(min=100, max=700, default=100, description='number of strokes')
+                                     }, outputs={'image': runway.image(description='output image containing the translated result')})
 def translate(learn, inputs):
     os.makedirs('images', exist_ok=True)
     inputs['source_imgs'].save('images/temp.jpg')
-    paths = os.path.join('images','temp.jpg')
+    paths = os.path.join('images', 'temp.jpg')
     args.img_path = paths
     args.max_m_strokes = inputs['Strokes']
     pt = ProgressivePainter(args=args)

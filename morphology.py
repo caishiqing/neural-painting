@@ -1,5 +1,3 @@
-import math
-import pdb
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -24,7 +22,6 @@ class Erosion2d(nn.Module):
             x[:, [i], :, :] = channel
 
         return x
-
 
 
 class Dilation2d(nn.Module):

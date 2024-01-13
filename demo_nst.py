@@ -2,7 +2,7 @@ import argparse
 import torch
 import torch.optim as optim
 
-from painter import *
+from painter import NeuralStyleTransfer
 
 # settings
 parser = argparse.ArgumentParser(description='STYLIZED NEURAL PAINTING')
@@ -50,11 +50,11 @@ def optimize_x(pt):
     pt._load_checkpoint()
     pt.net_G.eval()
 
-    if args.transfer_mode == 0: # transfer color only
+    if args.transfer_mode == 0:  # transfer color only
         pt.x_ctt.requires_grad = False
         pt.x_color.requires_grad = True
         pt.x_alpha.requires_grad = False
-    else: # transfer both color and texture
+    else:  # transfer both color and texture
         pt.x_ctt.requires_grad = True
         pt.x_color.requires_grad = True
         pt.x_alpha.requires_grad = True
@@ -96,4 +96,3 @@ if __name__ == '__main__':
 
     pt = NeuralStyleTransfer(args=args)
     optimize_x(pt)
-

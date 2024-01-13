@@ -117,7 +117,7 @@ def define_G(rdrr, netG, init_type='normal', init_gain=0.02, gpu_ids=[]):
 class DCGAN(nn.Module):
     def __init__(self, rdrr, ngf=64):
         super(DCGAN, self).__init__()
-        input_nc = rdrr.d
+        input_nc = rdrr.param_size
         self.out_size = 128
         self.main = nn.Sequential(
             # input is Z, going into a convolution
@@ -158,7 +158,7 @@ class DCGAN(nn.Module):
 class DCGAN_32(nn.Module):
     def __init__(self, rdrr, ngf=64):
         super(DCGAN_32, self).__init__()
-        input_nc = rdrr.d
+        input_nc = rdrr.param_size
         self.out_size = 32
         self.main = nn.Sequential(
             # input is Z, going into a convolution
@@ -245,7 +245,7 @@ class HuangNet(nn.Module):
         super(HuangNet, self).__init__()
         self.rdrr = rdrr
         self.out_size = 128
-        self.fc1 = (nn.Linear(rdrr.d, 512))
+        self.fc1 = (nn.Linear(rdrr.param_size, 512))
         self.fc2 = (nn.Linear(512, 1024))
         self.fc3 = (nn.Linear(1024, 2048))
         self.fc4 = (nn.Linear(2048, 4096))
@@ -285,7 +285,8 @@ class ZouFCNFusion(nn.Module):
     def forward(self, x):
         x_shape = x[:, 0:self.rdrr.d_shape, :, :]
         x_alpha = x[:, [-1], :, :]
-        if self.rdrr.renderer in ['oilpaintbrush', 'airbrush']:
+        if not self.rdrr.transparent:
+            # 不透明
             x_alpha = torch.tensor(1.0).to(device)
 
         mask = self.huangnet(x_shape)
@@ -323,7 +324,7 @@ class UNet(torch.nn.Module):
         super(UNet, self).__init__()
         norm_layer = get_norm_layer(norm_type='batch')
         self.unet = UnetGenerator(
-            rdrr.d, 6, 7, norm_layer=norm_layer, use_dropout=False)
+            rdrr.param_size, 6, 7, norm_layer=norm_layer, use_dropout=False)
 
     def forward(self, x):
         """

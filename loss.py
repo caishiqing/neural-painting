@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 import torchvision
-import utils
-import matplotlib.pyplot as plt
-import numpy as np
 import random
 import pytorch_batch_sinkhorn as spc
 
@@ -39,8 +36,8 @@ class VGGPerceptualLoss(torch.nn.Module):
                 p.requires_grad = False
         self.blocks = torch.nn.ModuleList(blocks)
         self.transform = torch.nn.functional.interpolate
-        self.mean = torch.tensor([0.485, 0.456, 0.406]).view(1,3,1,1)
-        self.std = torch.tensor([0.229, 0.224, 0.225]).view(1,3,1,1)
+        self.mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+        self.std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
         self.resize = resize
 
     def forward(self, input, target, ignore_color=False):
@@ -67,7 +64,6 @@ class VGGPerceptualLoss(torch.nn.Module):
         return loss
 
 
-
 class VGGStyleLoss(torch.nn.Module):
     def __init__(self, transfer_mode, resize=True):
         super(VGGStyleLoss, self).__init__()
@@ -80,7 +76,7 @@ class VGGStyleLoss(torch.nn.Module):
         if transfer_mode == 0:  # transfer color only
             blocks.append(vgg.features[:4].eval())
             blocks.append(vgg.features[4:9].eval())
-        else: # transfer both color and texture
+        else:  # transfer both color and texture
             blocks.append(vgg.features[:4].eval())
             blocks.append(vgg.features[4:9].eval())
             blocks.append(vgg.features[9:16].eval())
@@ -122,7 +118,6 @@ class VGGStyleLoss(torch.nn.Module):
             gm_y = self.gram_matrix(y)
             loss += torch.sum((gm_x-gm_y)**2)
         return loss
-
 
 
 class SinkhornLoss(nn.Module):
@@ -170,9 +165,4 @@ class SinkhornLoss(nn.Module):
                 canvas_grids, gt_grids, epsilon=self.epsilon, niter=self.niter,
                 mass_x=mass_x, mass_y=mass_y)
 
-
         return loss
-
-
-
-
